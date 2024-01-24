@@ -1,6 +1,6 @@
 use std::env;
 use std::net::Ipv4Addr;
-use std::ops::BitAnd;
+// use std::ops::BitAnd;
 
 /*
 Address:   192.168.0.1           11000000.10101000.00000000 .00000001
@@ -138,8 +138,16 @@ fn get_first_host(net: &Ipv4Addr) -> Ipv4Addr {
     Ipv4Addr::from(host)
 }
 
-fn get_last_host(ip: &Ipv4Addr, subnet: &Ipv4Addr) -> Ipv4Addr {
-    todo!();
+fn get_last_host(net_addr: &Ipv4Addr, subnet: &Ipv4Addr) -> Ipv4Addr {
+    let mut host: [u8;4] = [0;4];
+
+
+    for i in 0..net_addr.octets().len() {
+        host[i] = net_addr.octets()[i] & subnet.octets()[i];
+    }
+
+    Ipv4Addr::from(host)
+
 }
 
 fn get_network_addr(ip: &Ipv4Addr, subnet: &Ipv4Addr) -> Ipv4Addr {
