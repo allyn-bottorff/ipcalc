@@ -2,6 +2,10 @@
 
 An ipcalc clone written in Rust.
 
+== Installation
+
+`cargo install --git https://github.com/allyn-bottorff/ipcalc`
+
 == Usage
 
 `ipcalc ip_address CIDR`
