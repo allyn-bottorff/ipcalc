@@ -35,7 +35,7 @@ fn main() {
         None => panic!("Unable to parse IP addresss argument."),
     };
 
-    let cidr = match subnet_arg {
+    let subnet_mask = match subnet_arg {
         Some(c) => match parse_cidr(&c) {
             Some(cidr) => cidr,
             None => panic!("Unable to parse subnet mask."),
@@ -43,9 +43,9 @@ fn main() {
         None => panic!("Please enter a subnet mask in CIDR format."),
     };
 
-    let net_addr = get_network_addr(&ip_parsed, &cidr);
+    let net_addr = get_network_addr(&ip_parsed, &subnet_mask);
     let first_host = get_first_host(&net_addr);
-    let host_mask = get_host_mask(&cidr);
+    let host_mask = get_host_mask(&subnet_mask);
     let last_host = get_last_host(&net_addr, &host_mask);
     let broadcast = get_broadcast(&net_addr, &host_mask);
     let hosts_per_net = get_hosts_per_net(&first_host, &broadcast);
@@ -53,8 +53,8 @@ fn main() {
     print!("{:COL1$} {:COL2$}", "IP: ", ip_parsed);
     ip_parsed.octets().map(|o| print!("{o:08b} "));
     println!();
-    print!("{:COL1$} {:COL2$}", "Subnet mask: ", cidr);
-    cidr.octets().map(|o| print!("{o:08b} "));
+    print!("{:COL1$} {:COL2$}", "Subnet mask: ", subnet_mask);
+    subnet_mask.octets().map(|o| print!("{o:08b} "));
     println!();
     print!("{:COL1$} {:COL2$}", "Network: ", net_addr);
     net_addr.octets().map(|o| print!("{o:08b} "));
@@ -74,6 +74,8 @@ fn main() {
     println!("{:COL1$} {}", "Hosts per net: ", hosts_per_net);
 }
 
+///Parse the IPV4 address string into an optional IP address. Return None if something goes wrong
+///with the conversion or if the address is malformed.
 fn parse_ip_v4(ip_string: &str) -> Option<Ipv4Addr> {
     let str_split: Vec<&str> = ip_string.split('.').collect();
 
@@ -96,6 +98,7 @@ fn parse_ip_v4(ip_string: &str) -> Option<Ipv4Addr> {
     Some(Ipv4Addr::from(u8s))
 }
 
+///Parse the CIDR formatted string into a netmask formatted as an IP Address
 fn parse_cidr(cidr_string: &str) -> Option<Ipv4Addr> {
     if &cidr_string[..1] != "/" {
         return None;
@@ -118,11 +121,14 @@ fn parse_cidr(cidr_string: &str) -> Option<Ipv4Addr> {
     Some(Ipv4Addr::from(mask))
 }
 
+///Get the first address available for hosts in the network
 fn get_first_host(net: &Ipv4Addr) -> Ipv4Addr {
     let host: u32 = (*net).into();
+
     Ipv4Addr::from(host + 1)
 }
 
+///Get the host mask for the network (wildcard mask)
 fn get_host_mask(subnet: &Ipv4Addr) -> Ipv4Addr {
     let subnet: u32 = (*subnet).into();
     let mask: u32 = u32::MAX;
@@ -131,14 +137,16 @@ fn get_host_mask(subnet: &Ipv4Addr) -> Ipv4Addr {
     Ipv4Addr::from(broadcast)
 }
 
+///Get the last host address available for hosts in the network
 fn get_last_host(network: &Ipv4Addr, host_mask: &Ipv4Addr) -> Ipv4Addr {
     let subnet: u32 = (*network).into();
     let host_mask: u32 = (*host_mask).into();
-    let last_host: u32 = subnet | host_mask - 1;
+    let last_host: u32 = (subnet | host_mask) - 1;
 
     Ipv4Addr::from(last_host)
 }
 
+///Get the number of addresses available to assign to hosts in the network
 fn get_hosts_per_net(first_host: &Ipv4Addr, broadcast: &Ipv4Addr) -> u32 {
     let broadcast: u32 = (*broadcast).into();
     let first_host: u32 = (*first_host).into();
@@ -146,13 +154,16 @@ fn get_hosts_per_net(first_host: &Ipv4Addr, broadcast: &Ipv4Addr) -> u32 {
     broadcast - first_host
 }
 
+///Get the network address of the network
 fn get_network_addr(ip: &Ipv4Addr, subnet: &Ipv4Addr) -> Ipv4Addr {
     let host: u32 = (*ip).into();
     let subnet: u32 = (*subnet).into();
     let net_addr = host & subnet;
+
     Ipv4Addr::from(net_addr)
 }
 
+///get the broadcast address of the network
 fn get_broadcast(network: &Ipv4Addr, host_mask: &Ipv4Addr) -> Ipv4Addr {
     let subnet: u32 = (*network).into();
     let host_mask: u32 = (*host_mask).into();
@@ -178,7 +189,6 @@ mod tests {
         let first: Ipv4Addr = [192, 168, 1, 1].into();
         let broadcast: Ipv4Addr = [192, 168, 1, 255].into();
         let hosts_per_net = get_hosts_per_net(&first, &broadcast);
-
         assert_eq!(expected, hosts_per_net);
     }
     #[test]
@@ -187,7 +197,6 @@ mod tests {
         let network: Ipv4Addr = [192, 168, 1, 0].into();
         let host_mask: Ipv4Addr = [0, 0, 0, 255].into();
         let last_host = get_last_host(&network, &host_mask);
-
         assert_eq!(expected, last_host);
     }
 
@@ -204,10 +213,8 @@ mod tests {
         let expected: Ipv4Addr = [192, 168, 1, 1].into();
         let host: Ipv4Addr = [192, 168, 1, 15].into();
         let subnet: Ipv4Addr = [255, 255, 255, 0].into();
-
         let net_addr = get_network_addr(&host, &subnet);
         let first_addr = get_first_host(&net_addr);
-
         assert_eq!(expected, first_addr);
     }
 
@@ -216,9 +223,7 @@ mod tests {
         let expected: Ipv4Addr = [192, 168, 1, 0].into();
         let host: Ipv4Addr = [192, 168, 1, 15].into();
         let subnet: Ipv4Addr = [255, 255, 255, 0].into();
-
         let net_addr = get_network_addr(&host, &subnet);
-
         assert_eq!(expected, net_addr);
     }
 
@@ -241,35 +246,30 @@ mod tests {
     fn test_parse_good_ip_v4() {
         let expected: Ipv4Addr = [127, 0, 0, 1].into();
         let test_string: String = "127.0.0.1".to_string();
-
         let test_ip = parse_ip_v4(&test_string);
         assert_eq!(test_ip.unwrap(), expected);
     }
     #[test]
     fn test_parse_long_ip_v4() {
         let test_string: String = "127.0.0.1.2".to_string();
-
         let test_ip = parse_ip_v4(&test_string);
         assert_eq!(test_ip, None);
     }
     #[test]
     fn test_parse_bad_ip_v4() {
         let test_string: String = "127.0.340.2".to_string();
-
         let test_ip = parse_ip_v4(&test_string);
         assert_eq!(test_ip, None);
     }
     #[test]
     fn test_parse_short_ip_v4() {
         let test_string: String = "127.0.40".to_string();
-
         let test_ip = parse_ip_v4(&test_string);
         assert_eq!(test_ip, None);
     }
     #[test]
     fn test_parse_not_an_ip_v4() {
         let test_string: String = "stuff".to_string();
-
         let test_ip = parse_ip_v4(&test_string);
         assert_eq!(test_ip, None);
     }
