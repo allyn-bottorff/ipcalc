@@ -15,6 +15,9 @@
 use std::env;
 use std::net::Ipv4Addr;
 
+const COL1: usize = 15; //spacing constant for column 1
+const COL2: usize = 17; //spacing constant for column 2
+
 fn main() {
     let mut args = env::args();
 
@@ -47,28 +50,28 @@ fn main() {
     let broadcast = get_broadcast(&net_addr, &host_mask);
     let hosts_per_net = get_hosts_per_net(&first_host, &broadcast);
 
-    print!("{:15} {:15}", "IP: ", ip_parsed);
+    print!("{:COL1$} {:COL2$}", "IP: ", ip_parsed);
     ip_parsed.octets().map(|o| print!("{o:08b} "));
     println!();
-    print!("{:15} {:15}", "Subnet mask: ", cidr);
+    print!("{:COL1$} {:COL2$}", "Subnet mask: ", cidr);
     cidr.octets().map(|o| print!("{o:08b} "));
     println!();
-    print!("{:15} {:15}", "Network: ", net_addr);
+    print!("{:COL1$} {:COL2$}", "Network: ", net_addr);
     net_addr.octets().map(|o| print!("{o:08b} "));
     println!();
-    print!("{:15} {:15}", "Broadcast: ", broadcast);
+    print!("{:COL1$} {:COL2$}", "Broadcast: ", broadcast);
     broadcast.octets().map(|o| print!("{o:08b} "));
     println!();
-    print!("{:15} {:15}", "Host Mask: ", host_mask);
+    print!("{:COL1$} {:COL2$}", "Host Mask: ", host_mask);
     host_mask.octets().map(|o| print!("{o:08b} "));
     println!();
-    print!("{:15} {:15}", "First host: ", first_host);
+    print!("{:COL1$} {:COL2$}", "First host: ", first_host);
     first_host.octets().map(|o| print!("{o:08b} "));
     println!();
-    print!("{:15} {:15}", "Last host: ", last_host);
+    print!("{:COL1$} {:COL2$}", "Last host: ", last_host);
     last_host.octets().map(|o| print!("{o:08b} "));
     println!();
-    println!("{:15} {}", "Hosts per net: ", hosts_per_net);
+    println!("{:COL1$} {}", "Hosts per net: ", hosts_per_net);
 }
 
 fn parse_ip_v4(ip_string: &str) -> Option<Ipv4Addr> {
