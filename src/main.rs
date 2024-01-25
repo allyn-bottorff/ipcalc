@@ -1,18 +1,19 @@
+// Copyright 2023 Allyn L. Bottorff
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use std::env;
 use std::net::Ipv4Addr;
-// use std::ops::BitAnd;
-
-/*
-Address:   192.168.0.1           11000000.10101000.00000000 .00000001
-Netmask:   255.255.255.0 = 24    11111111.11111111.11111111 .00000000
-Wildcard:  0.0.0.255             00000000.00000000.00000000 .11111111
-=>
-Network:   192.168.0.0/24        11000000.10101000.00000000 .00000000 (Class C)
-Broadcast: 192.168.0.255         11000000.10101000.00000000 .11111111
-HostMin:   192.168.0.1           11000000.10101000.00000000 .00000001
-HostMax:   192.168.0.254         11000000.10101000.00000000 .11111110
-Hosts/Net: 254                   (Private Internet)
-*/
 
 fn main() {
     let mut args = env::args();
