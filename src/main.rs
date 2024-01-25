@@ -91,29 +91,11 @@ fn parse_cidr(cidr_string: &str) -> Option<Ipv4Addr> {
     if cidr > 32 {
         return None;
     }
-    let mut mask: [u8; 4] = [255; 4];
+    let mut mask: u32 = u32::MAX;
 
     let bit_shift = 32 - cidr;
 
-    let mut cleared_octets = (bit_shift / 8) as usize;
-    let partial_octet_bits = 8 - (cidr % 8);
-
-    for i in 0..mask.len() {
-        let k = mask.len() - 1 - i; //reverse the loop
-        mask[k] = 0;
-        if cleared_octets > 0 {
-            cleared_octets -= 1;
-        }
-        if cleared_octets == 0 {
-            if k >= 1 && partial_octet_bits != 8 {
-                //Shift bits as long as there are actual
-                //leftovers and we won't run off the end of the
-                //array.
-                mask[k - 1] <<= partial_octet_bits;
-            }
-            break;
-        }
-    }
+    mask <<= bit_shift;
 
     Some(Ipv4Addr::from(mask))
 }
@@ -138,17 +120,18 @@ fn get_first_host(net: &Ipv4Addr) -> Ipv4Addr {
     Ipv4Addr::from(host)
 }
 
-fn get_last_host(net_addr: &Ipv4Addr, subnet: &Ipv4Addr) -> Ipv4Addr {
-    let mut host: [u8;4] = [0;4];
-
-
-    for i in 0..net_addr.octets().len() {
-        host[i] = net_addr.octets()[i] & subnet.octets()[i];
-    }
-
-    Ipv4Addr::from(host)
-
-}
+// fn get_last_host(net_addr: &Ipv4Addr, subnet: &Ipv4Addr) -> Ipv4Addr {
+//     todo!();
+//     let mut host: [u8;4] = [0;4];
+//
+//
+//     for i in 0..net_addr.octets().len() {
+//         host[i] = net_addr.octets()[i] & subnet.octets()[i];
+//     }
+//
+//     Ipv4Addr::from(host)
+//
+// }
 
 fn get_network_addr(ip: &Ipv4Addr, subnet: &Ipv4Addr) -> Ipv4Addr {
     let hosts = ip.octets();
