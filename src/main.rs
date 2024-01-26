@@ -18,6 +18,21 @@ use std::{net::Ipv4Addr, process::exit};
 const COL1: usize = 15; // spacing constant for column 1
 const COL2: usize = 17; // spacing constant for column 2
 
+// Classful IP constants
+const CLASS_A_SUBNET: Ipv4Addr = Ipv4Addr::new(255, 0, 0, 0);
+const CLASS_B_SUBNET: Ipv4Addr = Ipv4Addr::new(255, 255, 0, 0);
+const CLASS_C_SUBNET: Ipv4Addr = Ipv4Addr::new(255, 255, 255, 0);
+const CLASS_A_START: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
+const CLASS_A_END: Ipv4Addr = Ipv4Addr::new(127, 255, 255, 255);
+const CLASS_B_START: Ipv4Addr = Ipv4Addr::new(128, 0, 0, 0);
+const CLASS_B_END: Ipv4Addr = Ipv4Addr::new(191, 255, 255, 255);
+const CLASS_C_START: Ipv4Addr = Ipv4Addr::new(192, 0, 0, 0);
+const CLASS_C_END: Ipv4Addr = Ipv4Addr::new(223, 255, 255, 255);
+// const CLASS_D_START: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 0);
+// const CLASS_D_END: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 255);
+// const CLASS_E_START: Ipv4Addr = Ipv4Addr::new(240, 0, 0, 0);
+// const CLASS_E_END: Ipv4Addr = Ipv4Addr::new(255, 255, 255, 255);
+
 /// IP address and subnet calculator.
 #[derive(Parser)]
 #[command(author, version, about, long_about=None)]
@@ -25,7 +40,7 @@ struct Cli {
     /// IP Address (v4)
     ip: String,
     /// Subnet (CIDR notation e.g. "/24")
-    subnet: String,
+    subnet: Option<String>,
 }
 
 fn main() {
@@ -39,43 +54,51 @@ fn main() {
         }
     };
 
-    let subnet_mask = match parse_cidr(&cli.subnet) {
-        Some(cidr) => cidr,
-        None => {
-            eprintln!("Unable to parse subnet mask.");
-            exit(1);
-        }
-    };
-
-    let net_addr = get_network_addr(&ip_parsed, &subnet_mask);
-    let first_host = get_first_host(&net_addr);
-    let host_mask = get_host_mask(&subnet_mask);
-    let last_host = get_last_host(&net_addr, &host_mask);
-    let broadcast = get_broadcast(&net_addr, &host_mask);
-    let hosts_per_net = get_hosts_per_net(&first_host, &broadcast);
-
+    // Print IP address line
     print!("{:COL1$} {:COL2$}", "IP: ", ip_parsed);
     ip_parsed.octets().map(|o| print!("{o:08b} "));
     println!();
-    print!("{:COL1$} {:COL2$}", "Subnet mask: ", subnet_mask);
-    subnet_mask.octets().map(|o| print!("{o:08b} "));
-    println!();
-    print!("{:COL1$} {:COL2$}", "Network: ", net_addr);
-    net_addr.octets().map(|o| print!("{o:08b} "));
-    println!();
-    print!("{:COL1$} {:COL2$}", "Broadcast: ", broadcast);
-    broadcast.octets().map(|o| print!("{o:08b} "));
-    println!();
-    print!("{:COL1$} {:COL2$}", "Host Mask: ", host_mask);
-    host_mask.octets().map(|o| print!("{o:08b} "));
-    println!();
-    print!("{:COL1$} {:COL2$}", "First host: ", first_host);
-    first_host.octets().map(|o| print!("{o:08b} "));
-    println!();
-    print!("{:COL1$} {:COL2$}", "Last host: ", last_host);
-    last_host.octets().map(|o| print!("{o:08b} "));
-    println!();
-    println!("{:COL1$} {}", "Hosts per net: ", hosts_per_net);
+
+    let subnet_mask = match cli.subnet {
+        Some(sub) => match parse_cidr(&sub) {
+            Some(cidr) => Some(cidr),
+            None => {
+                eprintln!("Unable to parse subnet mask.");
+                exit(1);
+            }
+        },
+        None => get_default_subnet(&ip_parsed),
+    };
+
+    // Process the subnet dependent parts if there is a subnet mask
+    if let Some(subnet_mask) = subnet_mask {
+        let net_addr = get_network_addr(&ip_parsed, &subnet_mask);
+        let first_host = get_first_host(&net_addr);
+        let host_mask = get_host_mask(&subnet_mask);
+        let last_host = get_last_host(&net_addr, &host_mask);
+        let broadcast = get_broadcast(&net_addr, &host_mask);
+        let hosts_per_net = get_hosts_per_net(&first_host, &broadcast);
+
+        print!("{:COL1$} {:COL2$}", "Subnet mask: ", subnet_mask);
+        subnet_mask.octets().map(|o| print!("{o:08b} "));
+        println!();
+        print!("{:COL1$} {:COL2$}", "Network: ", net_addr);
+        net_addr.octets().map(|o| print!("{o:08b} "));
+        println!();
+        print!("{:COL1$} {:COL2$}", "Broadcast: ", broadcast);
+        broadcast.octets().map(|o| print!("{o:08b} "));
+        println!();
+        print!("{:COL1$} {:COL2$}", "Host Mask: ", host_mask);
+        host_mask.octets().map(|o| print!("{o:08b} "));
+        println!();
+        print!("{:COL1$} {:COL2$}", "First host: ", first_host);
+        first_host.octets().map(|o| print!("{o:08b} "));
+        println!();
+        print!("{:COL1$} {:COL2$}", "Last host: ", last_host);
+        last_host.octets().map(|o| print!("{o:08b} "));
+        println!();
+        println!("{:COL1$} {}", "Hosts per net: ", hosts_per_net);
+    }
 }
 
 /// Parse the IPV4 address string into an optional IP address. Return None if something goes wrong
@@ -102,7 +125,24 @@ fn parse_ip_v4(ip_string: &str) -> Option<Ipv4Addr> {
     Some(Ipv4Addr::from(u8s))
 }
 
-/// Parse the CIDR formatted string into a netmask formatted as an IP Address
+/// Find default subnet for the IP (assuming classful routing and not CIDR)
+fn get_default_subnet(ip: &Ipv4Addr) -> Option<Ipv4Addr> {
+    let ip_u32: u32 = (*ip).into();
+
+    if ip_u32 >= u32::from(CLASS_C_START) && ip_u32 <= u32::from(CLASS_C_END) {
+        return Some(CLASS_C_SUBNET);
+    }
+    if ip_u32 >= u32::from(CLASS_B_START) && ip_u32 <= u32::from(CLASS_B_END) {
+        return Some(CLASS_B_SUBNET);
+    }
+    if ip_u32 >= u32::from(CLASS_A_START) && ip_u32 <= u32::from(CLASS_A_END) {
+        return Some(CLASS_A_SUBNET);
+    }
+
+    None
+}
+
+/// Parse the CIDR formatted string into a netmask formatted as an IP address
 fn parse_cidr(cidr_string: &str) -> Option<Ipv4Addr> {
     if &cidr_string[..1] != "/" {
         return None;
@@ -181,42 +221,42 @@ mod tests {
     use super::*;
     #[test]
     fn test_get_broadcast() {
-        let expected: Ipv4Addr = [192, 168, 1, 255].into();
-        let network: Ipv4Addr = [192, 168, 1, 0].into();
-        let host_mask: Ipv4Addr = [0, 0, 0, 255].into();
+        let expected: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 255);
+        let network: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 0);
+        let host_mask: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 255);
         let broadcast = get_broadcast(&network, &host_mask);
         assert_eq!(expected, broadcast);
     }
     #[test]
     fn test_get_hosts_per_net() {
         let expected = 254;
-        let first: Ipv4Addr = [192, 168, 1, 1].into();
-        let broadcast: Ipv4Addr = [192, 168, 1, 255].into();
+        let first: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 1);
+        let broadcast: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 255);
         let hosts_per_net = get_hosts_per_net(&first, &broadcast);
         assert_eq!(expected, hosts_per_net);
     }
     #[test]
     fn test_get_last_host() {
-        let expected: Ipv4Addr = [192, 168, 1, 254].into();
-        let network: Ipv4Addr = [192, 168, 1, 0].into();
-        let host_mask: Ipv4Addr = [0, 0, 0, 255].into();
+        let expected: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 254);
+        let network: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 0);
+        let host_mask: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 255);
         let last_host = get_last_host(&network, &host_mask);
         assert_eq!(expected, last_host);
     }
 
     #[test]
     fn test_get_host_mask() {
-        let expected: Ipv4Addr = [0, 0, 0, 255].into();
-        let subnet: Ipv4Addr = [255, 255, 255, 0].into();
+        let expected: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 255);
+        let subnet: Ipv4Addr = Ipv4Addr::new(255, 255, 255, 0);
         let broadcast = get_host_mask(&subnet);
         assert_eq!(expected, broadcast);
     }
 
     #[test]
     fn test_get_first_addr() {
-        let expected: Ipv4Addr = [192, 168, 1, 1].into();
-        let host: Ipv4Addr = [192, 168, 1, 15].into();
-        let subnet: Ipv4Addr = [255, 255, 255, 0].into();
+        let expected: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 1);
+        let host: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 15);
+        let subnet: Ipv4Addr = Ipv4Addr::new(255, 255, 255, 0);
         let net_addr = get_network_addr(&host, &subnet);
         let first_addr = get_first_host(&net_addr);
         assert_eq!(expected, first_addr);
@@ -224,23 +264,23 @@ mod tests {
 
     #[test]
     fn test_get_net_addr() {
-        let expected: Ipv4Addr = [192, 168, 1, 0].into();
-        let host: Ipv4Addr = [192, 168, 1, 15].into();
-        let subnet: Ipv4Addr = [255, 255, 255, 0].into();
+        let expected: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 0);
+        let host: Ipv4Addr = Ipv4Addr::new(192, 168, 1, 15);
+        let subnet: Ipv4Addr = Ipv4Addr::new(255, 255, 255, 0);
         let net_addr = get_network_addr(&host, &subnet);
         assert_eq!(expected, net_addr);
     }
 
     #[test]
     fn test_parse_cidr_class_c() {
-        let expected: Ipv4Addr = [255, 255, 255, 0].into();
+        let expected: Ipv4Addr = Ipv4Addr::new(255, 255, 255, 0);
         let test_cidr = "/24";
         let mask = parse_cidr(test_cidr);
         assert_eq!(mask.unwrap(), expected);
     }
     #[test]
     fn test_parse_cidr_partial() {
-        let expected: Ipv4Addr = [255, 255, 254, 0].into();
+        let expected: Ipv4Addr = Ipv4Addr::new(255, 255, 254, 0);
         let test_cidr = "/23";
         let mask = parse_cidr(test_cidr);
         assert_eq!(mask.unwrap(), expected);
@@ -248,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_parse_good_ip_v4() {
-        let expected: Ipv4Addr = [127, 0, 0, 1].into();
+        let expected: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
         let test_string: String = "127.0.0.1".to_string();
         let test_ip = parse_ip_v4(&test_string);
         assert_eq!(test_ip.unwrap(), expected);
