@@ -12,30 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-use std::net::Ipv4Addr;
+use clap::Parser;
+use std::{net::Ipv4Addr, process::exit};
 
 const COL1: usize = 15; //spacing constant for column 1
 const COL2: usize = 17; //spacing constant for column 2
 
+#[derive(Parser)]
+#[command(author, version, about, long_about=None)]
+struct Cli {
+    ip: String,
+    subnet: Option<String>,
+}
+
 fn main() {
-    let mut args = env::args();
+    let cli = Cli::parse();
 
-    let _path = args.next();
-    let ip_arg = args.next();
-    let subnet_arg = args.next();
-
-    let ip_string = match ip_arg {
-        Some(s) => s,
-        None => panic!("Please enter an IP address."),
-    };
-
-    let ip_parsed = match parse_ip_v4(&ip_string) {
+    let ip_parsed = match parse_ip_v4(&cli.ip) {
         Some(ip) => ip,
-        None => panic!("Unable to parse IP addresss argument."),
+        None => {
+            eprintln!("Unable to parse IP addresss argument.");
+            exit(1);
+        }
     };
 
-    let subnet_mask = match subnet_arg {
+    let subnet_mask = match cli.subnet {
         Some(c) => match parse_cidr(&c) {
             Some(cidr) => cidr,
             None => panic!("Unable to parse subnet mask."),
