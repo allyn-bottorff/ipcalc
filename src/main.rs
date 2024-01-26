@@ -12,35 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-use std::net::Ipv4Addr;
+use clap::Parser;
+use std::{net::Ipv4Addr, process::exit};
 
-const COL1: usize = 15; //spacing constant for column 1
-const COL2: usize = 17; //spacing constant for column 2
+const COL1: usize = 15; // spacing constant for column 1
+const COL2: usize = 17; // spacing constant for column 2
+
+/// IP address and subnet calculator.
+#[derive(Parser)]
+#[command(author, version, about, long_about=None)]
+struct Cli {
+    /// IP Address (v4)
+    ip: String,
+    /// Subnet (CIDR notation e.g. "/24")
+    subnet: String,
+}
 
 fn main() {
-    let mut args = env::args();
+    let cli = Cli::parse();
 
-    let _path = args.next();
-    let ip_arg = args.next();
-    let subnet_arg = args.next();
-
-    let ip_string = match ip_arg {
-        Some(s) => s,
-        None => panic!("Please enter an IP address."),
-    };
-
-    let ip_parsed = match parse_ip_v4(&ip_string) {
+    let ip_parsed = match parse_ip_v4(&cli.ip) {
         Some(ip) => ip,
-        None => panic!("Unable to parse IP addresss argument."),
+        None => {
+            eprintln!("Unable to parse IP addresss argument.");
+            exit(1);
+        }
     };
 
-    let subnet_mask = match subnet_arg {
-        Some(c) => match parse_cidr(&c) {
-            Some(cidr) => cidr,
-            None => panic!("Unable to parse subnet mask."),
-        },
-        None => panic!("Please enter a subnet mask in CIDR format."),
+    let subnet_mask = match parse_cidr(&cli.subnet) {
+        Some(cidr) => cidr,
+        None => {
+            eprintln!("Unable to parse subnet mask.");
+            exit(1);
+        }
     };
 
     let net_addr = get_network_addr(&ip_parsed, &subnet_mask);
@@ -74,8 +78,8 @@ fn main() {
     println!("{:COL1$} {}", "Hosts per net: ", hosts_per_net);
 }
 
-///Parse the IPV4 address string into an optional IP address. Return None if something goes wrong
-///with the conversion or if the address is malformed.
+/// Parse the IPV4 address string into an optional IP address. Return None if something goes wrong
+/// with the conversion or if the address is malformed.
 fn parse_ip_v4(ip_string: &str) -> Option<Ipv4Addr> {
     let str_split: Vec<&str> = ip_string.split('.').collect();
 
@@ -98,7 +102,7 @@ fn parse_ip_v4(ip_string: &str) -> Option<Ipv4Addr> {
     Some(Ipv4Addr::from(u8s))
 }
 
-///Parse the CIDR formatted string into a netmask formatted as an IP Address
+/// Parse the CIDR formatted string into a netmask formatted as an IP Address
 fn parse_cidr(cidr_string: &str) -> Option<Ipv4Addr> {
     if &cidr_string[..1] != "/" {
         return None;
@@ -121,14 +125,14 @@ fn parse_cidr(cidr_string: &str) -> Option<Ipv4Addr> {
     Some(Ipv4Addr::from(mask))
 }
 
-///Get the first address available for hosts in the network
+/// Get the first address available for hosts in the network
 fn get_first_host(net: &Ipv4Addr) -> Ipv4Addr {
     let host: u32 = (*net).into();
 
     Ipv4Addr::from(host + 1)
 }
 
-///Get the host mask for the network (wildcard mask)
+/// Get the host mask for the network (wildcard mask)
 fn get_host_mask(subnet: &Ipv4Addr) -> Ipv4Addr {
     let subnet: u32 = (*subnet).into();
     let mask: u32 = u32::MAX;
@@ -137,7 +141,7 @@ fn get_host_mask(subnet: &Ipv4Addr) -> Ipv4Addr {
     Ipv4Addr::from(broadcast)
 }
 
-///Get the last host address available for hosts in the network
+/// Get the last host address available for hosts in the network
 fn get_last_host(network: &Ipv4Addr, host_mask: &Ipv4Addr) -> Ipv4Addr {
     let subnet: u32 = (*network).into();
     let host_mask: u32 = (*host_mask).into();
@@ -146,7 +150,7 @@ fn get_last_host(network: &Ipv4Addr, host_mask: &Ipv4Addr) -> Ipv4Addr {
     Ipv4Addr::from(last_host)
 }
 
-///Get the number of addresses available to assign to hosts in the network
+/// Get the number of addresses available to assign to hosts in the network
 fn get_hosts_per_net(first_host: &Ipv4Addr, broadcast: &Ipv4Addr) -> u32 {
     let broadcast: u32 = (*broadcast).into();
     let first_host: u32 = (*first_host).into();
@@ -154,7 +158,7 @@ fn get_hosts_per_net(first_host: &Ipv4Addr, broadcast: &Ipv4Addr) -> u32 {
     broadcast - first_host
 }
 
-///Get the network address of the network
+/// Get the network address of the network
 fn get_network_addr(ip: &Ipv4Addr, subnet: &Ipv4Addr) -> Ipv4Addr {
     let host: u32 = (*ip).into();
     let subnet: u32 = (*subnet).into();
@@ -163,7 +167,7 @@ fn get_network_addr(ip: &Ipv4Addr, subnet: &Ipv4Addr) -> Ipv4Addr {
     Ipv4Addr::from(net_addr)
 }
 
-///get the broadcast address of the network
+/// Get the broadcast address of the network
 fn get_broadcast(network: &Ipv4Addr, host_mask: &Ipv4Addr) -> Ipv4Addr {
     let subnet: u32 = (*network).into();
     let host_mask: u32 = (*host_mask).into();
